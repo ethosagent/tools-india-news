@@ -1,0 +1,11 @@
+src/
+*.test.ts
+.github/
+.agents/
+biome.json
+tsconfig.json
+tsup.config.ts
+vitest.config.ts
+plan/
+CLAUDE.md
+AGENTS.md

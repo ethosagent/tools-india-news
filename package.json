@@ -1,0 +1,75 @@
+{
+  "name": "@ethosagent/tools-india-news",
+  "version": "0.1.0",
+  "description": "Indian financial news and corporate announcements tools for Ethos AI agents — BSE/NSE filings, earnings calendar, financial news",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "bin": {
+    "india-news": "./dist/cli.js"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "npm@10.8.1",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "check": "npm run typecheck && npm run lint && npm run test",
+    "prepublishOnly": "npm run check && npm run build"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "peerDependencies": {
+    "@ethosagent/types": ">=0.4.0"
+  },
+  "peerDependenciesMeta": {
+    "@ethosagent/types": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "better-sqlite3": "12.10.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.15",
+    "@types/better-sqlite3": "7.6.13",
+    "@types/node": "22.19.19",
+    "tsup": "8.5.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.7"
+  },
+  "keywords": [
+    "ethos",
+    "india",
+    "nse",
+    "bse",
+    "news",
+    "announcements",
+    "earnings",
+    "ai-agent"
+  ],
+  "license": "MIT",
+  "author": "Mitesh Sharma",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MiteshSharma/tools-india-news"
+  }
+}
