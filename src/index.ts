@@ -1,4 +1,4 @@
 export type { Announcement, EarningsEvent, NewsArticle } from './store';
 export { NewsStore, TTL } from './store';
 
-export { createIndiaNewsTools } from './tools';
+export { createIndiaNewsTools, createIndiaNewsTools as createTools } from './tools';
