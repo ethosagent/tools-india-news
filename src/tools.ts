@@ -620,6 +620,12 @@ const indiaNewsBrief: Tool = {
 // Public API
 // ---------------------------------------------------------------------------
 
+export function activate(api: { registerTool(tool: unknown): void }): void {
+  for (const tool of createIndiaNewsTools()) {
+    api.registerTool(tool);
+  }
+}
+
 export function createIndiaNewsTools(): Tool[] {
   return [
     indiaNewsAnnouncements,
