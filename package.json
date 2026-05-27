@@ -1,6 +1,6 @@
 {
   "name": "@ethosagent/tools-india-news",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Indian financial news and corporate announcements tools for Ethos AI agents — BSE/NSE filings, earnings calendar, financial news",
   "type": "module",
   "main": "./dist/index.js",
