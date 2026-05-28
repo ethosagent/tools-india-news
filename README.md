@@ -11,6 +11,18 @@ Indian financial news and corporate announcements tools for Ethos AI agents -- B
 npm install @ethosagent/tools-india-news
 ```
 
+## Local storage
+
+All fetched data is cached in SQLite at `~/.ethos/news-data/news.db` (override: `INDIA_NEWS_DB` env var). Nothing leaves your machine — no cloud sync, no external database.
+
+| Data | Cache TTL | Stale-refresh trigger |
+|---|---|---|
+| BSE/NSE corporate announcements | 4 hours | Next call after TTL expires |
+| Earnings calendar | 24 hours | Next call after TTL expires |
+| News RSS feeds (ET, BS, MC) | 1 hour | Next call after TTL expires |
+
+Data refreshes automatically when stale. To force an immediate refresh: `india-news refresh` (CLI) or ask your agent to call `india_news_refresh`. To wipe all cached data: `india-news clean`.
+
 ## CLI Usage
 
 ```bash
@@ -64,6 +76,14 @@ for (const tool of createIndiaNewsTools()) {
   toolRegistry.register(tool);
 }
 ```
+
+## First-time setup
+
+After the plugin is installed, tell your agent:
+
+> Refresh my India news data and give me a brief of the latest financial headlines
+
+This seeds the local SQLite cache from BSE, NSE, and the news RSS feeds (Economic Times, Business Standard, Moneycontrol).
 
 ## Data Sources
 
