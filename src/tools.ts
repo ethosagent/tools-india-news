@@ -1,53 +1,15 @@
 // Ethos Tool wrappers for India news and corporate announcements
-// @ethosagent/types is an optional peer dep — types re-declared locally to avoid hard import
 
 import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import type { EthosPlugin, EthosPluginApi, Tool } from '@ethosagent/plugin-sdk';
+import { defineTool, err, ok } from '@ethosagent/plugin-sdk/tool-helpers';
 import { fetchBseAnnouncements } from './bse-fetcher';
 import { fetchNseAnnouncements, fetchNseEarningsCalendar } from './nse-fetcher';
 import { fetchAllRssFeeds, fetchRssFeed } from './rss-fetcher';
 import type { Announcement, EarningsEvent, NewsArticle } from './store';
 import { NewsStore, TTL } from './store';
-
-// ---------------------------------------------------------------------------
-// Local type re-declarations (mirrors @ethosagent/types Tool interface)
-// ---------------------------------------------------------------------------
-
-type ToolResult = { ok: true; value: string } | { ok: false; error: string; code: string };
-
-interface ToolContext {
-  abortSignal?: AbortSignal;
-  secretsResolver?: { get(ref: string): Promise<string | null> };
-  scopedFetch?: { fetch(url: string, init?: RequestInit): Promise<Response> };
-  emit?: (event: {
-    type: 'progress';
-    toolName: string;
-    message: string;
-    audience?: 'user' | 'internal';
-    percent?: number;
-  }) => void;
-}
-
-interface Tool {
-  name: string;
-  description: string;
-  toolset: string;
-  maxResultChars?: number;
-  outputIsUntrusted?: boolean;
-  capabilities?: {
-    network?: { allowedHosts: string[] };
-    secrets?: string[];
-    fs?: { read?: string[]; write?: string[] };
-  };
-  isAvailable?(): boolean;
-  schema: {
-    type: 'object';
-    properties: Record<string, unknown>;
-    required?: string[];
-  };
-  execute(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult>;
-}
 
 // ---------------------------------------------------------------------------
 // Singleton store
@@ -218,7 +180,7 @@ interface BriefArgs {
 // Tool definitions
 // ---------------------------------------------------------------------------
 
-const indiaNewsAnnouncements: Tool = {
+const indiaNewsAnnouncements = defineTool<AnnouncementsArgs>({
   name: 'india_news_announcements',
   description:
     'BSE and NSE corporate announcements for Indian listed companies.\n' +
@@ -229,7 +191,6 @@ const indiaNewsAnnouncements: Tool = {
     'If no symbol, returns latest 50 announcements across all categories.',
   toolset: 'news',
   maxResultChars: 8000,
-  outputIsUntrusted: true,
   capabilities: {
     network: {
       allowedHosts: ['api.bseindia.com', 'www.bseindia.com', 'www.nseindia.com'],
@@ -261,9 +222,8 @@ const indiaNewsAnnouncements: Tool = {
       },
     },
   },
-  async execute(rawArgs: Record<string, unknown>): Promise<ToolResult> {
+  async execute(args) {
     try {
-      const args = rawArgs as AnnouncementsArgs;
       const store = getStore();
       await refreshAnnouncements(store, { symbol: args.symbol, force: args.force_refresh });
 
@@ -280,9 +240,8 @@ const indiaNewsAnnouncements: Tool = {
         announcements = store.getLatestAnnouncements(days, limit);
       }
 
-      return {
-        ok: true,
-        value: JSON.stringify({
+      return ok(
+        JSON.stringify({
           fetched_at: new Date().toISOString(),
           count: announcements.length,
           announcements: announcements.map((a) => ({
@@ -294,19 +253,16 @@ const indiaNewsAnnouncements: Tool = {
             source: a.source,
             attachment_url: a.attachmentUrl,
           })),
-        }),
-      };
-    } catch (err) {
-      return {
-        ok: false,
-        error: err instanceof Error ? err.message : String(err),
-        code: 'FETCH_ERROR',
-      };
+        })
+      );
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e), 'execution_failed');
     }
   },
-};
+});
+indiaNewsAnnouncements.outputIsUntrusted = true;
 
-const indiaNewsEarningsCalendar: Tool = {
+const indiaNewsEarningsCalendar = defineTool<EarningsCalendarArgs>({
   name: 'india_news_earnings_calendar',
   description:
     'Upcoming earnings result dates for NSE-listed companies.\n' +
@@ -315,7 +271,6 @@ const indiaNewsEarningsCalendar: Tool = {
     'to plan research agenda or set watchdog alerts.',
   toolset: 'news',
   maxResultChars: 5000,
-  outputIsUntrusted: true,
   capabilities: {
     network: { allowedHosts: ['www.nseindia.com'] },
   },
@@ -332,9 +287,8 @@ const indiaNewsEarningsCalendar: Tool = {
       },
     },
   },
-  async execute(rawArgs: Record<string, unknown>): Promise<ToolResult> {
+  async execute(args) {
     try {
-      const args = rawArgs as EarningsCalendarArgs;
       const store = getStore();
       await refreshEarnings(store);
 
@@ -346,9 +300,8 @@ const indiaNewsEarningsCalendar: Tool = {
         results = results.filter((e) => e.symbol === sym);
       }
 
-      return {
-        ok: true,
-        value: JSON.stringify({
+      return ok(
+        JSON.stringify({
           as_of: new Date().toISOString().slice(0, 10),
           upcoming_count: results.length,
           results: results.map((e) => ({
@@ -358,19 +311,16 @@ const indiaNewsEarningsCalendar: Tool = {
             period: e.period,
             board_meeting_date: e.boardMeetingDate,
           })),
-        }),
-      };
-    } catch (err) {
-      return {
-        ok: false,
-        error: err instanceof Error ? err.message : String(err),
-        code: 'FETCH_ERROR',
-      };
+        })
+      );
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e), 'execution_failed');
     }
   },
-};
+});
+indiaNewsEarningsCalendar.outputIsUntrusted = true;
 
-const indiaNewsFeed: Tool = {
+const indiaNewsFeed = defineTool<NewsFeedArgs>({
   name: 'india_news_feed',
   description:
     'Latest Indian financial news from Economic Times, Business Standard, and Moneycontrol.\n' +
@@ -379,7 +329,6 @@ const indiaNewsFeed: Tool = {
     'headlines may contain promotional language; evaluate critically.',
   toolset: 'news',
   maxResultChars: 10000,
-  outputIsUntrusted: true,
   capabilities: {
     network: {
       allowedHosts: [
@@ -408,9 +357,8 @@ const indiaNewsFeed: Tool = {
       },
     },
   },
-  async execute(rawArgs: Record<string, unknown>): Promise<ToolResult> {
+  async execute(args) {
     try {
-      const args = rawArgs as NewsFeedArgs;
       const store = getStore();
       const src =
         args.source === 'all' || !args.source ? undefined : (args.source as 'et' | 'bs' | 'mc');
@@ -419,9 +367,8 @@ const indiaNewsFeed: Tool = {
       const limit = Math.min(args.limit ?? 15, 50);
       const articles = store.getLatestNews(limit, src);
 
-      return {
-        ok: true,
-        value: JSON.stringify({
+      return ok(
+        JSON.stringify({
           fetched_at: new Date().toISOString(),
           count: articles.length,
           articles: articles.map((a) => ({
@@ -431,19 +378,16 @@ const indiaNewsFeed: Tool = {
             published_at: new Date(a.publishedAt).toISOString(),
             summary: a.summary,
           })),
-        }),
-      };
-    } catch (err) {
-      return {
-        ok: false,
-        error: err instanceof Error ? err.message : String(err),
-        code: 'FETCH_ERROR',
-      };
+        })
+      );
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e), 'execution_failed');
     }
   },
-};
+});
+indiaNewsFeed.outputIsUntrusted = true;
 
-const indiaNewsSearch: Tool = {
+const indiaNewsSearch = defineTool<SearchArgs>({
   name: 'india_news_search',
   description:
     'Full-text search across corporate announcements and news articles.\n' +
@@ -452,7 +396,6 @@ const indiaNewsSearch: Tool = {
     'Returns results ranked by relevance.',
   toolset: 'news',
   maxResultChars: 8000,
-  outputIsUntrusted: true,
   capabilities: {},
   schema: {
     type: 'object',
@@ -473,9 +416,8 @@ const indiaNewsSearch: Tool = {
     },
     required: ['query'],
   },
-  async execute(rawArgs: Record<string, unknown>): Promise<ToolResult> {
+  async execute(args) {
     try {
-      const args = rawArgs as SearchArgs;
       const store = getStore();
       const limit = args.limit ?? 10;
       const scope = args.scope ?? 'all';
@@ -485,9 +427,8 @@ const indiaNewsSearch: Tool = {
         scope === 'all' || scope === 'announcements' ? store.searchAnnouncements(query, limit) : [];
       const newsResults = scope === 'all' || scope === 'news' ? store.searchNews(query, limit) : [];
 
-      return {
-        ok: true,
-        value: JSON.stringify({
+      return ok(
+        JSON.stringify({
           query,
           announcements: annResults.map((a) => ({
             symbol: a.symbol,
@@ -504,19 +445,16 @@ const indiaNewsSearch: Tool = {
             published_at: new Date(n.publishedAt).toISOString(),
           })),
           total: annResults.length + newsResults.length,
-        }),
-      };
-    } catch (err) {
-      return {
-        ok: false,
-        error: err instanceof Error ? err.message : String(err),
-        code: 'FETCH_ERROR',
-      };
+        })
+      );
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e), 'execution_failed');
     }
   },
-};
+});
+indiaNewsSearch.outputIsUntrusted = true;
 
-const indiaNewsBrief: Tool = {
+const indiaNewsBrief = defineTool<BriefArgs>({
   name: 'india_news_brief',
   description:
     'Single-call news snapshot for a trading session.\n' +
@@ -525,7 +463,6 @@ const indiaNewsBrief: Tool = {
     'Refreshes stale data automatically. Use for session-start context injection.',
   toolset: 'news',
   maxResultChars: 8000,
-  outputIsUntrusted: true,
   capabilities: {
     network: {
       allowedHosts: [
@@ -547,9 +484,8 @@ const indiaNewsBrief: Tool = {
       },
     },
   },
-  async execute(rawArgs: Record<string, unknown>): Promise<ToolResult> {
+  async execute(args) {
     try {
-      const args = rawArgs as BriefArgs;
       const store = getStore();
 
       // Refresh stale data
@@ -573,9 +509,8 @@ const indiaNewsBrief: Tool = {
       // Top news
       const news = store.getLatestNews(10);
 
-      return {
-        ok: true,
-        value: JSON.stringify({
+      return ok(
+        JSON.stringify({
           as_of: new Date().toISOString(),
           todays_announcements: {
             count: announcements.length,
@@ -604,23 +539,30 @@ const indiaNewsBrief: Tool = {
               url: n.url,
             })),
           },
-        }),
-      };
-    } catch (err) {
-      return {
-        ok: false,
-        error: err instanceof Error ? err.message : String(err),
-        code: 'FETCH_ERROR',
-      };
+        })
+      );
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e), 'execution_failed');
     }
   },
-};
+});
+indiaNewsBrief.outputIsUntrusted = true;
 
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
-export function activate(api: { registerTool(tool: unknown): void }): void {
+/** v2 plugin entry point — registers all tools via EthosPluginApi. */
+export const plugin: EthosPlugin = {
+  activate(api: EthosPluginApi) {
+    for (const tool of createIndiaNewsTools()) {
+      api.registerTool(tool);
+    }
+  },
+};
+
+/** Backward-compatible activate function for v1 hosts. */
+export function activate(api: { registerTool(tool: Tool): void }): void {
   for (const tool of createIndiaNewsTools()) {
     api.registerTool(tool);
   }
@@ -628,10 +570,10 @@ export function activate(api: { registerTool(tool: unknown): void }): void {
 
 export function createIndiaNewsTools(): Tool[] {
   return [
-    indiaNewsAnnouncements,
-    indiaNewsEarningsCalendar,
-    indiaNewsFeed,
-    indiaNewsSearch,
-    indiaNewsBrief,
+    indiaNewsAnnouncements as Tool,
+    indiaNewsEarningsCalendar as Tool,
+    indiaNewsFeed as Tool,
+    indiaNewsSearch as Tool,
+    indiaNewsBrief as Tool,
   ];
 }

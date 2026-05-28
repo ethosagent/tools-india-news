@@ -38,10 +38,10 @@
     "LICENSE"
   ],
   "peerDependencies": {
-    "@ethosagent/types": ">=0.4.0"
+    "@ethosagent/plugin-sdk": ">=0.4.3"
   },
   "peerDependenciesMeta": {
-    "@ethosagent/types": {
+    "@ethosagent/plugin-sdk": {
       "optional": true
     }
   },
@@ -51,6 +51,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.15",
+    "@ethosagent/plugin-sdk": "^0.4.3",
     "@types/better-sqlite3": "7.6.13",
     "@types/node": "22.19.19",
     "tsup": "8.5.1",
@@ -74,6 +75,12 @@
     "url": "https://github.com/MiteshSharma/tools-india-news"
   },
   "ethos": {
-    "type": "plugin"
+    "type": "plugin",
+    "id": "tools-india-news",
+    "pluginContractMajor": 2,
+    "skills_dir": "skills",
+    "priority": 0,
+    "dependencies": [],
+    "credentials": []
   }
 }
